@@ -15,86 +15,129 @@ def myexcepthook(type, value, traceback, oldhook=sys.excepthook):
     input("Press RETURN. ")
 sys.excepthook = myexcepthook
 
-# Generate a Robolink object RDK. This object interfaces with RoboDK.
-print('Starting RoboDK')
-RDK = Robolink()
-# Set filedirectiry for placement of matlab code and RoboDK file
-filedirectoryRoboDK = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'RoboDK'))
-filedirectoryMatlab = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'Matlab'))
 
-# Open RoboDK file
-RoboDKFile = filedirectoryRoboDK + r'\Assembly Cell.rdk'
-# RDK.AddFile(RoboDKFile)
-robot = RDK.Item('M-6IB', 2)
+class Interface:
 
-# Start MATLAB engine, and set cd to placement of matlab functions.
-print('Starting Matlab engine')
-eng = matlab.engine.start_matlab()
-eng.cd(filedirectoryMatlab)
+    # Constructor
+    def __init__(self):
+        # Set filedirectiry for placement of matlab code and RoboDK file
+        filedirectoryRoboDK = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'RoboDK'))
+        filedirectoryMatlab = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'Matlab'))
 
-keepGoing = True
-while keepGoing == True:
+        # Start MATLAB engine, and set cd to placement of matlab functions.
+        print('Starting Matlab engine')
+        self.eng = matlab.engine.start_matlab()
+        self.eng.cd(filedirectoryMatlab)
 
-    # Initilize all RoboDK programs
-    program_interior = RDK.Item('AssembleInterior')
-    program_top_blue = RDK.Item('Attach_Top_Cover_Blue')
-    program_top_red = RDK.Item('Attach_Top_Cover_Red')
-    program_detach = RDK.Item('Detach_Top')
-    program_final_step = RDK.Item('Final step')
+        # Generate a Robolink object RDK. This object interfaces with RoboDK.
+        print('Starting RoboDK')
+        self.RDK = Robolink()
 
-    # Makes sure that alle the parts are in the right places before starting the assembly
-    reset_program = RDK.Item('Reset')
-    reset_program.RunProgram()
+        # Open RoboDK file
+        self.RoboDK_file = filedirectoryRoboDK + r'\Assembly Cell.rdk'
+        # RDK.AddFile(RoboDK_file)
+        self.robot = self.RDK.Item('M-6IB', 2)
 
-    # Lets you choose the color for the bottom and top cover
-    color_bottom = int(
-        input('Choose a color for the bottom cover: \n 0 = Red \n 1 = Blue \n'))
-    color_top = int(
-        input('Choose a color for the top cover: \n 0 = Red \n 1 = Blue \n'))
-    engraving_prompt = input('Do you want custom text? [yes/no]\n')
-    # Notify user:
-    if engraving_prompt == 'yes':
-        text = input('Write custom text: ')
-        # If text is not upper case or too long, try again
-        while text.isupper() != True or len(text) > 4:
-            text = input(
-                'Text should be upper case and less than 5 characters.\nTry again: ')
-    if color_bottom == 0:
-        # Attatch the red bottom cover
-        print('Picking up bottom cover...\n')
-        eng.AttachBottomCoverRed(0.0)
-    elif color_bottom == 1:
-        # Attatch the blue bottom cover
-        print('Picking up bottom cover...\n')
-        eng.AttachBottomCoverBlue(0.0)
-    else:
-        print('ERROR:\n')
+        # Initilize all RoboDK programs
+        self.program_interior = self.RDK.Item('AssembleInterior')
+        self.program_top_blue = self.RDK.Item('Attach_Top_Cover_Blue')
+        self.program_top_red = self.RDK.Item('Attach_Top_Cover_Red')
+        self.program_detach = self.RDK.Item('Detach_Top')
+        self.program_final_step = self.RDK.Item('Final step')
+        
+        #Run the program
+        self.run_program()
 
-    ###################################
-    # Engraving Program
-    ###################################
-    if engraving_prompt == 'yes':
+    def run_program(self):
+        run_assembly = True
+        while run_assembly == True:
+            # Reset program
+            self.reset()
+            # Get user input
+            self.user_prompts()
+            # Place bottom cover in assembly fixture by using inverse kinematics
+            self.run_inverse_kinematics()
+            # Assemble interior of the phone
+            self.assemble_interior()
+            # Place the final product on an conveyour belt.
+            self.program_final_step.RunProgram()
+            while self.program_final_step.Busy():
+                time.sleep(.300)
+            # Ask the user if they want to produce another phone.
+            answer = input('Want another one? [yes/no]\n')
+            run_assembly = (answer == 'yes')
+
+    #User input
+    def user_prompts(self):
+        # Lets you choose the color for the bottom and top cover
+        self.color_bottom = int(input('Choose a color for the bottom cover: \n 0 = Red \n 1 = Blue \n'))
+        self.color_top = int(input('Choose a color for the top cover: \n 0 = Red \n 1 = Blue \n'))
+        self.engraving_prompt = input('Do you want custom text? [yes/no]\n')
+        
+        # Notify user:
+        if self.engraving_prompt == 'yes':
+            self.text = input('Write custom text: ')
+            # If text is not upper case or too long, try again
+            while self.text.isupper() != True or len(self.text) > 5:
+                self.text = input(
+                    'Text should be upper case and less than 6 characters.\nTry again: ')
+
+
+    def assemble_interior(self):
+        print('Placing interior...\n')
+        self.program_interior.RunProgram()
+        while self.program_interior.Busy():
+            time.sleep(.300)
+
+        if self.color_top == 0:
+            # Calls the 'Assemble Red Phone' program
+            print('Placing top cover...\n')
+            self.program_top_red.RunProgram()
+            while self.program_top_red.Busy():
+                time.sleep(.300)
+        elif self.color_top == 1:
+            # Calls the 'Assemble Blue Phone' program
+            print('Placing top cover...\n')
+            self.program_top_blue.RunProgram()
+            while self.program_top_blue.Busy():
+                time.sleep(.300)
+        else:
+            print('ERROR:\n')
+
+        print('Placing top cover...\n')
+        self.program_detach.RunProgram()
+        while self.program_detach.Busy():
+            time.sleep(.300)
+
+    def reset(self):
+        # Makes sure that alle the parts are in the right places before starting the assembly
+        reset_program = self.RDK.Item('Reset')
+        reset_program.RunProgram()
+
+    # params text engraving or not
+    def engrave_run(self):
         print('Engraving text...')
         # Initialise program
-        gcode_generator = RDK.Item('Generate G-Code')
-        gcode_import = RDK.Item('Import G-Code')
-        via_point = RDK.Item('Via_engraver')
+        gcodeGenerator = self.RDK.Item('Generate G-Code')
+        gcodeImport = self.RDK.Item('Import G-Code')
+        pickupPhone = self.RDK.Item('Attach_phone')
+        viaPoint = self.RDK.Item('Via_engraver')
         # Generate g-code for engraving text
-        text = str(('%s' % text))
-        gcode_generator.RunProgram([('%s' % text)])
-        while gcode_generator.Busy():
+        text = str(('%s' % self.text))
+        gcodeGenerator.RunProgram([('%s' % text)])
+        while gcodeGenerator.Busy():
             time.sleep(.300)
 
         # Run program to import g-code
-        gcode_import.RunProgram()
-        while gcode_import.Busy():
+        gcodeImport.RunProgram()
+        while gcodeImport.Busy():
             time.sleep(.300)
 
         # Move to via point
-        robot.MoveJ(via_point)
+        self.robot.MoveJ(viaPoint)
 
         # Run g-code
-        Milling = RDK.Item('Millingsettings', 8)
+        Milling = self.RDK.Item('Millingsettings', 8)
         time.sleep(.300)
         Milling.RunProgram()
         while Milling.Busy():
@@ -102,48 +145,31 @@ while keepGoing == True:
 
         # Delete auto-generated files
         Milling.Delete()
-        Milling = RDK.Item('Millingsettings')
+        Milling = self.RDK.Item('Millingsettings')
         Milling.Delete()
 
         # Move to via point
-        robot.MoveJ(via_point)
+        self.robot.MoveJ(viaPoint)
+
+    def run_inverse_kinematics(self):
+        if self.color_bottom == 0:
+            # Attatch the red bottom cover
+            print('Picking up bottom cover...\n')
+            self.eng.AttachBottomCoverRed(0.0)
+        elif self.color_bottom == 1:
+            # Attatch the blue bottom cover
+            print('Picking up bottom cover...\n')
+            self.eng.AttachBottomCoverBlue(0.0)
+        else:
+            print('ERROR:\n')
+
+        # Run engraving
+        if self.engraving_prompt == 'yes':
+            self.engrave_run()
+
+        print('Putting down buttom cover...')
+        self.eng.DetachBottomCover(0.0)
 
 
 
-
-    print('Putting down buttom cover...')
-    eng.DetachBottomCover(0.0)
-    program_interior.RunProgram()
-    while program_interior.Busy():
-        print('Placing interior...\n')
-        time.sleep(1)
-
-    if color_top == 0:
-        # Calls the 'Assemble Red Phone' program
-        program_top_red.RunProgram()
-        while program_top_red.Busy():
-            print('Placing top cover...\n')
-            time.sleep(1)
-    elif color_top == 1:
-        # Calls the 'Assemble Blue Phone' program
-        program_top_blue.RunProgram()
-        while program_top_blue.Busy():
-            print('Placing top cover...\n')
-            time.sleep(1)
-    else:
-        print('ERROR:\n')
-
-    program_detach.RunProgram()
-    while program_detach.Busy():
-        print('Placing top cover...\n')
-        time.sleep(1)
-
-    program_final_step.RunProgram()
-    while program_final_step.Busy():
-        print('Placing to the side...\n')
-        time.sleep(1)
-
-    # Want antoher one?
-    answer = input('Want another one? [yes/no]\n')
-    keepGoing = (answer == 'yes')
-
+program = Interface()

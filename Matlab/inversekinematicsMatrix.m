@@ -30,6 +30,7 @@ end
 l3a = Joint06Goal(1,4)/cos(t1a)-a2;
 l1a =sqrt(l3a^2+(Joint06Goal(3,4))^2);
 l2a = sqrt(L3^2+a4^2);
+
 phi1a=acos((L2^2+l2a^2-l1a^2)/(2*L2*l2a));
 phi2a=acos((L2^2+l1a^2-l2a^2)/(2*L2*l1a));
 phi3a=atan2(a4,L3);
@@ -123,6 +124,6 @@ end
 
 %Return first possible solution
 
-returntarget = FinalSolutions16(1,:);
+returntarget = FinalSolutions16(:,:);
 
 end

@@ -16,7 +16,7 @@ T6_W=[  1,  0,  0,  0;
         0,  0,  -1, -100;
         0,  0,  0,  1];
 %%Calculating useful transformation matrices
-outputMatrice = DH_toMatrice(DH,1,6); %Returns transformation matrix from specified joint to specified joint
+outputMatrice = DH_toMatrice(DH,1,6)*T6_W; %Returns transformation matrix from specified joint to specified joint
 
 end
 

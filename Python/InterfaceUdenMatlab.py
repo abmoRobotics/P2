@@ -26,8 +26,8 @@ class Interface:
         self.RDK = Robolink()
 
         # Open RoboDK file
-        self.RoboDK_file = filedirectoryRoboDK + r'\Assembly Cell.rdk'
-        # RDK.AddFile(RoboDK_file)
+        RoboDK_file = filedirectoryRoboDK + r'\Assembly Cell.rdk'
+        self.RDK.AddFile(RoboDK_file)
         self.robot = self.RDK.Item('M-6IB', 2)
 
         # Initilize all RoboDK programs

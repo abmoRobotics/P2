@@ -8,4 +8,3 @@ outputMatrice = eye(4,4);
     outputMatrice = outputMatrice*T;
     end
 end
-
